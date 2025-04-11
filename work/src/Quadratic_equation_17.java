@@ -1,5 +1,5 @@
 import java.util.Scanner;
-public class grade {
+public class Quadratic_equation_17 {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
 
@@ -19,8 +19,8 @@ public class grade {
             else {
                 System.out.println("Two real and same Roots.");
             }
-            System.out.println("root1 ."+root1);
-            System.out.println("root2 ."+root2);
+            System.out.println("root1 +"+root1);
+            System.out.println("root2 +"+root2);
         }
         else {
             double realpart = -b/2*a;
