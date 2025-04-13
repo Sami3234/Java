@@ -10,6 +10,6 @@ import java.util.Scanner;
         for(int i=N1;i<=N2;i++){
             sum = sum+i;
         }
-        System.out.println("Sum of between natural number till "+N2+" is: "+sum);
+        System.out.println("Sum of between natural number till "+N2+" is:: "+sum);
     }   
 }   
