@@ -4,12 +4,10 @@ public class arrayactivity2 {
     public static void main(String args[]) {
         Scanner input = new Scanner(System.in);
         int[][] array = {
-                { 11, 12, 13 },
-                { 14, 15, 16 },
+                { 11, 12, 13 }, { 14, 15, 16 },
                 { 17, 18, 19 },
                 { 20, 21, 22 }
         };
-
         System.out.println("The given 2D array is...");
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
@@ -17,7 +15,6 @@ public class arrayactivity2 {
             }
             System.out.println();
         }
-
         System.out.println("The prime numbers in 2D array are...");
         int n = 0;
         for (int i = 0; i < 3; i++) {
@@ -28,7 +25,6 @@ public class arrayactivity2 {
                 }
             }
         }
-
         System.out.println("Total Prime Numbers = " + n);
     }
 
@@ -41,5 +37,6 @@ public class arrayactivity2 {
             }
         }
         return prime;
+
     }
 }
