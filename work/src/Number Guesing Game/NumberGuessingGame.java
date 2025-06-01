@@ -1,90 +1,255 @@
-import java.util.Scanner;
-import java.util.Random;
+import java.util.*;
 
 public class NumberGuessingGame {
+    static Scanner input = new Scanner(System.in);
+    static String username = "", password = "", firstName = "", lastName = "";
+    static boolean isFirstGame = true;
+    static boolean isLoggedIn = false;
+    static Map<String, String> accounts = new HashMap<>();
+    static Map<String, String[]> userDetails = new HashMap<>();
+
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        Random random = new Random();
-        
-        System.out.println("Welcome to Number Guessing Game!");
-        System.out.println("Choose difficulty level:");
-        System.out.println("1. Easy (1-10)");
-        System.out.println("2. Medium (1-50)");
-        System.out.println("3. Hard (1-100)");
-        
-        int choice = scanner.nextInt();
-        int maxNumber = 0;
-        int maxAttempts = 0;
-        
-        switch(choice) {
-            case 1:
-                maxNumber = 10;
-                maxAttempts = 5;
-                break;
-            case 2:
-                maxNumber = 50;
-                maxAttempts = 7;
-                break;
-            case 3:
-                maxNumber = 100;
-                maxAttempts = 10;
-                break;
-            default:
-                System.out.println("Invalid choice! Defaulting to Easy mode.");
-                maxNumber = 10;
-                maxAttempts = 5;
-        }
-        
-        int targetNumber = random.nextInt(maxNumber) + 1;
-        int[] guesses = new int[maxAttempts];
-        int attempts = 0;
-        boolean hasWon = false;
-        
-        System.out.println("I'm thinking of a number between 1 and " + maxNumber);
-        System.out.println("You have " + maxAttempts + " attempts to guess it.");
-        
-        while(attempts < maxAttempts && !hasWon) {
-            System.out.print("Enter your guess: ");
-            int guess = scanner.nextInt();
-            
-            if(guess < 1 || guess > maxNumber) {
-                System.out.println("Please enter a number between 1 and " + maxNumber);
+        while (true) {
+            if (isFirstGame) {
+                createAccount();
+            } else if (!isLoggedIn) {
+                if (!login()) {
+                    System.out.println("Login failed. Please try again.");
+                    continue;
+                }
+            }
+            playGame();
+            int choice = askRetry();
+            if (choice == 1) {
+                System.out.println("\nRestarting game...");
+                System.out.println("Boxes are reshuffling...\n");
+                System.out.println("Press Enter to Start the Game...");
+                input.nextLine();
                 continue;
+            } else if (choice == 2) {
+                System.out.println("Game Ended.");
+                System.out.println("Your account has been deleted.\n");
+                System.out.println("Please create a new account to play again.");
+                isFirstGame = true;
+                isLoggedIn = false;
+            } else if (choice == 3) {
+                System.out.println("Logged out successfully.\n");
+                isLoggedIn = false;
             }
+        }
+    }
+
+    private static boolean isValidUsername(String username) {
+        if (username.length() < 4) return false;
+        
+        boolean hasLetter = false;
+        boolean hasDigit = false;
+        
+        for (char c : username.toCharArray()) {
+            if (Character.isLetter(c)) hasLetter = true;
+            if (Character.isDigit(c)) hasDigit = true;
+            if (hasLetter && hasDigit) return true;
+        }
+        return false;
+    }
+
+    private static boolean isValidPassword(String password) {
+        if (password.length() < 6) return false;
+        
+        boolean hasLetter = false;
+        boolean hasDigit = false;
+        
+        for (char c : password.toCharArray()) {
+            if (Character.isLetter(c)) hasLetter = true;
+            if (Character.isDigit(c)) hasDigit = true;
+            if (hasLetter && hasDigit) return true;
+        }
+        return false;
+    }
+
+    private static void createAccount() {
+        System.out.println("\n=== Create New Account ===");
+        String username;
+        String password;
+        
+        System.out.print("Enter your first name: ");
+        firstName = input.nextLine().trim();
+        System.out.print("Enter your last name: ");
+        lastName = input.nextLine().trim();
+        
+        do {
+            System.out.print("Enter username (must contain both letters and numbers): ");
+            username = input.nextLine().trim();
+            if (!isValidUsername(username)) {
+                System.out.println("Username must be at least 4 characters long and contain both letters and numbers!");
+            } else if (accounts.containsKey(username)) {
+                System.out.println("This username is already taken. Please choose another one.");
+                username = "";
+            }
+        } while (!isValidUsername(username) || username.isEmpty());
+        
+        do {
+            System.out.print("Enter password (minimum 6 characters, must contain both letters and numbers): ");
+            password = input.nextLine().trim();
+            if (!isValidPassword(password)) {
+                System.out.println("Password must be at least 6 characters long and contain both letters and numbers!");
+            }
+        } while (!isValidPassword(password));
+        
+        accounts.put(username, password);
+        userDetails.put(username, new String[]{firstName, lastName});
+        System.out.println("Account created successfully!");
+        isFirstGame = false;
+        login();
+    }
+
+    private static boolean login() {
+        System.out.println("\n=== Login ===");
+        System.out.print("Enter username: ");
+        String username = input.nextLine().trim();
+        
+        if (!accounts.containsKey(username)) {
+            System.out.println("Invalid username!");
+            return false;
+        }
+        
+        int maxAttempts = 3;
+        int attempts = 0;
+        
+        while (attempts < maxAttempts) {
+            System.out.print("Enter password: ");
+            String password = input.nextLine().trim();
             
-            guesses[attempts] = guess;
-            attempts++;
-            
-            if(guess == targetNumber) {
-                hasWon = true;
-                System.out.println("Congratulations! You guessed the number!");
-            } else if(guess < targetNumber) {
-                System.out.println("Too low! Try again.");
+            String storedPassword = accounts.get(username);
+            if (storedPassword.equals(password)) {
+                String[] details = userDetails.get(username);
+                firstName = details[0];
+                lastName = details[1];
+                System.out.println("Login successful! Welcome " + firstName + " " + lastName + "!");
+                isLoggedIn = true;
+                showInstructions();
+                return true;
             } else {
-                System.out.println("Too high! Try again.");
+                attempts++;
+                if (attempts < maxAttempts) {
+                    System.out.println("Invalid password! Attempts remaining: " + (maxAttempts - attempts));
+                } else {
+                    System.out.println("Too many failed attempts. Please try logging in again.");
+                    return false;
+                }
             }
-            
-            System.out.println("Attempts remaining: " + (maxAttempts - attempts));
         }
-        
-        displayGameSummary(hasWon, targetNumber, attempts, guesses);
-        scanner.close();
+        return false;
     }
-    
-    public static void displayGameSummary(boolean hasWon, int targetNumber, int attempts, int[] guesses) {
-        System.out.println("\nGame Summary:");
-        System.out.println("Target number was: " + targetNumber);
-        System.out.println("Total attempts used: " + attempts);
-        
-        if(hasWon) {
-            System.out.println("Result: You won!");
+
+    static void showInstructions() {
+        System.out.println("Game Instructions");
+        System.out.println("--------------------");
+        System.out.println("There are 5 hidden boxes.");
+        System.out.println("Each box contains a unique number from 1 to 5.");
+        System.out.println("You need to guess the correct box for each number.");
+        System.out.println("You get 2 attempts per number.");
+        System.out.println("One wrong? Try again.");
+        System.out.println("Two wrong? Game Over.\n");
+        System.out.println("Press Enter to Start the Game...");
+        input.nextLine();
+    }
+
+    static void playGame() {
+        int[] boxes = generateRandomBoxes();
+        boolean[] revealedBoxes = new boolean[5];
+        boolean gameOver = false;
+
+        for (int numberToFind = 1; numberToFind <= 5; numberToFind++) {
+            boolean correctGuess = false;
+            for (int chance = 1; chance <= 2; chance++) {
+                displayBoxes(revealedBoxes, boxes, numberToFind);
+                System.out.print("\nEnter the box number (1-5) : ");
+                int guess = getValidInput(5);
+
+                if (boxes[guess - 1] == numberToFind) {
+                    System.out.println("\nCorrect! Now find the next number.");
+                    revealedBoxes[guess - 1] = true;
+                    correctGuess = true;
+                    break;
+                } else {
+                    System.out.println("\nIncorrect! You have " + (2 - chance) + " attempt" + (chance == 1 ? " left." : "s left."));
+                    if (chance == 1) {
+                        System.out.println("\nTry again:");
+                    }
+                }
+            }
+
+            if (!correctGuess) {
+                System.out.println("\nYou failed both attempts!");
+                System.out.println("Game Over!\n");
+                gameOver = true;
+                break;
+            }
+        }
+
+        if (!gameOver) {
+            System.out.println("\nCongratulations! You found all numbers!");
+            System.out.println("You're the Box Master!\n");
+        }
+    }
+
+    static void displayBoxes(boolean[] revealed, int[] boxes, int numberToFind) {
+        System.out.println("\nNumber to find: " + numberToFind);
+        if (numberToFind > 1) {
+            System.out.println("\nRemaining boxes:\n");
         } else {
-            System.out.println("Result: Game Over!");
+            System.out.println("\nSelect from the boxes below:\n");
         }
-        
-        System.out.println("\nYour guesses:");
-        for(int i = 0; i < attempts; i++) {
-            System.out.println("Attempt " + (i + 1) + ": " + guesses[i]);
+        for (int i = 0; i < 5; i++) {
+            if (!revealed[i]) {
+                System.out.println((i + 1) + ". [ Box " + (i + 1) + " ]");
+            }
         }
     }
-} 
+
+    static int getValidInput(int maxBox) {
+        int num = -1;
+        while (true) {
+            try {
+                num = Integer.parseInt(input.nextLine());
+                if (num >= 1 && num <= maxBox) {
+                    return num;
+                } else {
+                    System.out.print("Please enter a number between 1 and " + maxBox + ": ");
+                }
+            } catch (Exception e) {
+                System.out.print("Invalid input. Enter number between 1 to " + maxBox + ": ");
+            }
+        }
+    }
+
+    static int[] generateRandomBoxes() {
+        int[] arr = { 1, 2, 3, 4, 5 };
+        Random rand = new Random();
+        for (int i = 0; i < arr.length; i++) {
+            int j = rand.nextInt(arr.length);
+            int temp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = temp;
+        }
+        return arr;
+    }
+
+    static int askRetry() {
+        while (true) {
+            System.out.println("\nWhat would you like to do next?\n");
+            System.out.println("1. Retry Game (same account)");
+            System.out.println("2. End Game (delete account)");
+            System.out.println("3. Logout (login again)\n");
+            System.out.print("Enter your choice (1, 2, or 3) : ");
+            String inputStr = input.nextLine().trim();
+            if (inputStr.equals("1") || inputStr.equals("2") || inputStr.equals("3")) {
+                return Integer.parseInt(inputStr);
+            } else {
+                System.out.println("Please enter 1, 2, or 3 only.");
+            }
+        }
+    }
+}
+
