@@ -40,29 +40,37 @@ public class NumberGuessingGame {
     }
 
     private static boolean isValidUsername(String username) {
-        if (username.length() < 4) return false;
-        
+        if (username.length() < 4)
+            return false;
+
         boolean hasLetter = false;
         boolean hasDigit = false;
-        
+
         for (char c : username.toCharArray()) {
-            if (Character.isLetter(c)) hasLetter = true;
-            if (Character.isDigit(c)) hasDigit = true;
-            if (hasLetter && hasDigit) return true;
+            if (Character.isLetter(c))
+                hasLetter = true;
+            if (Character.isDigit(c))
+                hasDigit = true;
+            if (hasLetter && hasDigit)
+                return true;
         }
         return false;
     }
 
     private static boolean isValidPassword(String password) {
-        if (password.length() < 6) return false;
-        
+        if (password.length() < 6)
+            return false;
+
         boolean hasLetter = false;
         boolean hasDigit = false;
-        
+
         for (char c : password.toCharArray()) {
-            if (Character.isLetter(c)) hasLetter = true;
-            if (Character.isDigit(c)) hasDigit = true;
-            if (hasLetter && hasDigit) return true;
+            if (Character.isLetter(c))
+                hasLetter = true;
+            if (Character.isDigit(c))
+                hasDigit = true;
+            if (hasLetter && hasDigit)
+                return true;
         }
         return false;
     }
@@ -71,12 +79,12 @@ public class NumberGuessingGame {
         System.out.println("\n=== Create New Account ===");
         String username;
         String password;
-        
+
         System.out.print("Enter your first name: ");
         firstName = input.nextLine().trim();
         System.out.print("Enter your last name: ");
         lastName = input.nextLine().trim();
-        
+
         do {
             System.out.print("Enter username (must contain both letters and numbers): ");
             username = input.nextLine().trim();
@@ -87,7 +95,7 @@ public class NumberGuessingGame {
                 username = "";
             }
         } while (!isValidUsername(username) || username.isEmpty());
-        
+
         do {
             System.out.print("Enter password (minimum 6 characters, must contain both letters and numbers): ");
             password = input.nextLine().trim();
@@ -95,9 +103,9 @@ public class NumberGuessingGame {
                 System.out.println("Password must be at least 6 characters long and contain both letters and numbers!");
             }
         } while (!isValidPassword(password));
-        
+
         accounts.put(username, password);
-        userDetails.put(username, new String[]{firstName, lastName});
+        userDetails.put(username, new String[] { firstName, lastName });
         System.out.println("Account created successfully!");
         isFirstGame = false;
         login();
@@ -107,19 +115,19 @@ public class NumberGuessingGame {
         System.out.println("\n=== Login ===");
         System.out.print("Enter username: ");
         String username = input.nextLine().trim();
-        
+
         if (!accounts.containsKey(username)) {
             System.out.println("Invalid username!");
             return false;
         }
-        
+
         int maxAttempts = 3;
         int attempts = 0;
-        
+
         while (attempts < maxAttempts) {
             System.out.print("Enter password: ");
             String password = input.nextLine().trim();
-            
+
             String storedPassword = accounts.get(username);
             if (storedPassword.equals(password)) {
                 String[] details = userDetails.get(username);
@@ -173,7 +181,8 @@ public class NumberGuessingGame {
                     correctGuess = true;
                     break;
                 } else {
-                    System.out.println("\nIncorrect! You have " + (2 - chance) + " attempt" + (chance == 1 ? " left." : "s left."));
+                    System.out.println("\nIncorrect! You have " + (2 - chance) + " attempt"
+                            + (chance == 1 ? " left." : "s left."));
                     if (chance == 1) {
                         System.out.println("\nTry again:");
                     }
@@ -252,4 +261,3 @@ public class NumberGuessingGame {
         }
     }
 }
-
