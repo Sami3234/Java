@@ -1,161 +1,254 @@
 import java.util.*;
 import java.io.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.nio.file.*;
 
 public class NumberGuessingGame {
+    // =============== CONSTANTS AND VARIABLES ===============
     static Scanner input = new Scanner(System.in);
     static String username = "", password = "", firstName = "", lastName = "";
-    static boolean isFirstGame = true;
     static boolean isLoggedIn = false;
-    static Map<String, String> accounts = new HashMap<>();
-    static Map<String, String[]> userDetails = new HashMap<>();
+    static boolean guestPlayed = false;
+    static final String DATA_FILE = "Files/user_data.csv";
 
+    // =============== MAIN METHOD ===============
     public static void main(String[] args) {
+        createDataFileIfNotExists();
         while (true) {
-            if (isFirstGame) {
-                createAccount();
-            } else if (!isLoggedIn) {
-                if (!login()) {
-                    System.out.println("Login failed. Please try again.");
-                    continue;
-                }
-            }
-            if (isLoggedIn) {
+            if (!isLoggedIn) {
+                showLoginMenu();
+            } else {
                 playGame();
-                int choice = askRetry();
-                if (choice == 1) {
-                    System.out.println("\nRestarting game...");
-                    System.out.println("Boxes are reshuffling...\n");
-                    System.out.println("Press Enter to Start the Game...");
-                    input.nextLine();
-                    continue;
-                } else if (choice == 2) {
-                    System.out.println("Game Ended.");
-                    System.out.println("Your account has been deleted.\n");
-                    System.out.println("Please create a new account to play again.");
-                    isFirstGame = true;
-                    isLoggedIn = false;
-                } else if (choice == 3) {
-                    System.out.println("Logged out successfully.\n");
-                    isLoggedIn = false;
-                }
+                handleGameEnd();
             }
         }
     }
 
-    private static boolean isValidUsername(String username) {
-        if (username.length() < 4)
-            return false;
-        boolean hasLetter = false, hasDigit = false;
-        for (char c : username.toCharArray()) {
-            if (Character.isLetter(c))
-                hasLetter = true;
-            if (Character.isDigit(c))
-                hasDigit = true;
-            if (hasLetter && hasDigit)
-                return true;
+    // =============== LOGIN AND ACCOUNT MANAGEMENT ===============
+    private static void showLoginMenu() {
+        System.out.println("\n=== Welcome to Number Guessing Game ===");
+        System.out.println("1. Create Account\n2. Login\n3. Play as Guest");
+        System.out.print("Enter your choice (1, 2, or 3): ");
+
+        String choice = input.nextLine().trim();
+        switch (choice) {
+            case "1":
+                createAccount();
+                break;
+            case "2":
+                if (!isFileEmpty() && login()) {
+                    isLoggedIn = true;
+                } else {
+                    System.out.println("Login failed. Please try again.\n");
+                }
+                break;
+            case "3":
+                handleGuestMode();
+                break;
+            default:
+                System.out.println("Invalid choice. Please select 1, 2, or 3.");
         }
-        return false;
     }
 
-    private static boolean isValidPassword(String password) {
-        if (password.length() < 6)
-            return false;
-        boolean hasLetter = false, hasDigit = false;
-        for (char c : password.toCharArray()) {
-            if (Character.isLetter(c))
-                hasLetter = true;
-            if (Character.isDigit(c))
-                hasDigit = true;
-            if (hasLetter && hasDigit)
-                return true;
+    private static void handleGuestMode() {
+        if (!guestPlayed) {
+            System.out.println("\nStarting Game in Guest Mode...");
+            showInstructions();
+            playGame();
+            guestPlayed = true;
+            System.out.println("\nGuest session ended. You must create an account to continue.\n");
+        } else {
+            System.out.println("\nGuest mode already used. Please create an account.\n");
         }
-        return false;
     }
 
     private static void createAccount() {
         System.out.println("\n=== Create New Account ===");
+        getPersonalInfo();
+        getUsername();
+        getPassword();
+        saveUserData();
+        System.out.println("Account created successfully!");
+        isLoggedIn = true;
+        showInstructions();
+    }
 
+    private static void getPersonalInfo() {
         System.out.print("Enter your first name: ");
         firstName = input.nextLine().trim();
         System.out.print("Enter your last name: ");
         lastName = input.nextLine().trim();
+    }
 
-        do {
-            System.out.print("Enter username (must contain both letters and numbers): ");
-            username = input.nextLine().trim();
-
-            if (!isValidUsername(username)) {
-                System.out.println("Username must be at least 4 characters long and contain both letters and numbers!");
-            } else if (accounts.containsKey(username)) {
-                System.out.println("This username is already taken. Please choose another one.");
-                username = "";
-            } else if (checkUsernameInFile(username)) {
-                System.out.println("This username already exists. Choose another.");
-                username = "";
+    private static void getUsername() {
+        while (true) {
+            try {
+                System.out.print("Enter username (min 4 chars, must include letters and numbers): ");
+                username = input.nextLine().trim();
+                validateUsername(username);
+                if (isUsernameExists(username)) {
+                    System.out.println("Username already exists. Please choose another one.");
+                    continue;
+                }
+                break;
+            } catch (IllegalArgumentException e) {
+                System.out.println("Error: " + e.getMessage());
             }
-        } while (!isValidUsername(username) || username.isEmpty());
+        }
+    }
 
-        do {
-            System.out.print("Enter password (minimum 6 characters, must contain both letters and numbers): ");
-            password = input.nextLine().trim();
-            if (!isValidPassword(password)) {
-                System.out.println("Password must be at least 6 characters long and contain both letters and numbers!");
+    private static void getPassword() {
+        while (true) {
+            try {
+                System.out.print("Enter password (min 6 chars, must include letters and numbers): ");
+                password = input.nextLine().trim();
+                validatePassword(password);
+                break;
+            } catch (IllegalArgumentException e) {
+                System.out.println("Error: " + e.getMessage());
             }
-        } while (!isValidPassword(password));
-
-        accounts.put(username, password);
-        userDetails.put(username, new String[] { firstName, lastName });
-        saveUserToFile(username, new String[] { firstName, lastName });
-        System.out.println("Account created successfully!");
-        isFirstGame = false;
-        login();
+        }
     }
 
     private static boolean login() {
         System.out.println("\n=== Login ===");
-        System.out.print("Enter username: ");
-        String uname = input.nextLine().trim();
-
-        if (!accounts.containsKey(uname)) {
-            System.out.println("Invalid username!");
-            return false;
+        String uname = "";
+        while (true) {
+            System.out.print("Enter username: ");
+            uname = input.nextLine().trim();
+            if (isUsernameExists(uname))
+                break;
+            System.out.println("Username not found! Please try again.");
         }
 
-        int maxAttempts = 3, attempts = 0;
-        while (attempts < maxAttempts) {
-            try {
-                System.out.print("Enter password: ");
-                String pwd = input.nextLine().trim();
+        for (int attempts = 0; attempts < 3; attempts++) {
+            System.out.print("Enter password: ");
+            String pword = input.nextLine().trim();
+            if (validateCredentials(uname, pword))
+                return true;
+            System.out.println("Invalid password! Attempts left: " + (2 - attempts));
+        }
+        System.out.println("Too many failed attempts.");
+        return false;
+    }
 
-                String storedPassword = accounts.get(uname);
-                if (storedPassword.equals(pwd)) {
-                    String[] details = userDetails.get(uname);
-                    username = uname;
-                    firstName = details[0];
-                    lastName = details[1];
-                    System.out.println("Login successful! Welcome " + firstName + " " + lastName + "!");
-                    isLoggedIn = true;
-                    showInstructions();
-                    return true;
-                } else {
-                    attempts++;
-                    if (attempts < maxAttempts) {
-                        System.out.println("Invalid password! Attempts remaining: " + (maxAttempts - attempts));
-                    } else {
-                        System.out.println("Too many failed attempts. Please try logging in again.");
-                        return false;
-                    }
+    // =============== FILE OPERATIONS ===============
+    private static void createDataFileIfNotExists() {
+        try {
+            File file = new File(DATA_FILE);
+            if (!file.exists()) {
+                file.getParentFile().mkdirs();
+                file.createNewFile();
+                try (PrintWriter out = new PrintWriter(new FileWriter(DATA_FILE))) {
+                    out.println("Full Name,Username,Password");
                 }
-            } catch (Exception e) {
-                System.out.println("Unexpected error during login.");
-                return false;
             }
+        } catch (IOException e) {
+            System.out.println("Error creating data file: " + e.getMessage());
+        }
+    }
+
+    private static boolean isFileEmpty() {
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(DATA_FILE));
+            return lines.isEmpty() || (lines.size() == 1 && lines.get(0).equals("Full Name,Username,Password"));
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
+    private static void saveUserData() {
+        try (PrintWriter out = new PrintWriter(new FileWriter(DATA_FILE, true))) {
+            out.println(firstName + " " + lastName + "," + username + "," + password);
+        } catch (IOException e) {
+            System.out.println("Error saving user data: " + e.getMessage());
+        }
+    }
+
+    private static boolean isUsernameExists(String username) {
+        try (BufferedReader br = new BufferedReader(new FileReader(DATA_FILE))) {
+            br.readLine(); // Skip header
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.split(",")[1].equals(username))
+                    return true;
+            }
+        } catch (IOException e) {
+            System.out.println("Error checking username: " + e.getMessage());
         }
         return false;
     }
 
+    private static void deleteAccount() {
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(DATA_FILE));
+            String header = lines.get(0);
+            lines.removeIf(line -> line.split(",")[1].equals(username));
+            Files.write(Paths.get(DATA_FILE), lines);
+        } catch (IOException e) {
+            System.out.println("Error deleting account: " + e.getMessage());
+        }
+    }
+
+    private static boolean validateCredentials(String uname, String pword) {
+        try (BufferedReader br = new BufferedReader(new FileReader(DATA_FILE))) {
+            br.readLine(); // Skip header
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(",");
+                if (data[1].equals(uname) && data[2].equals(pword)) {
+                    username = data[1];
+                    password = data[2];
+                    String[] nameParts = data[0].split(" ");
+                    firstName = nameParts[0];
+                    lastName = nameParts.length > 1 ? nameParts[1] : "";
+                    System.out.println("Login successful! Welcome " + data[0] + "!");
+                    showInstructions();
+                    return true;
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error during login: " + e.getMessage());
+        }
+        return false;
+    }
+
+    // =============== GAME LOGIC ===============
+    private static void playGame() {
+        int[] boxes = generateRandomBoxes();
+        boolean[] revealedBoxes = new boolean[5];
+        boolean gameOver = false;
+
+        for (int numberToFind = 1; numberToFind <= 5; numberToFind++) {
+            if (!tryToFindNumber(boxes, revealedBoxes, numberToFind)) {
+                gameOver = true;
+                break;
+            }
+        }
+
+        if (!gameOver) {
+            System.out.println("\nCongratulations! You found all numbers!");
+        }
+    }
+
+    private static boolean tryToFindNumber(int[] boxes, boolean[] revealedBoxes, int numberToFind) {
+        for (int chance = 1; chance <= 3; chance++) {
+            displayBoxes(revealedBoxes, boxes, numberToFind);
+            System.out.print("\nEnter the box number (1-5): ");
+            int guess = getValidInput(5);
+
+            if (boxes[guess - 1] == numberToFind) {
+                System.out.println("\nCorrect! Now find the next number.");
+                revealedBoxes[guess - 1] = true;
+                return true;
+            } else {
+                System.out.println("\nIncorrect! You have " + (3 - chance) + " attempt(s) left.");
+            }
+        }
+        System.out.println("\nYou failed all attempts! Game Over.");
+        return false;
+    }
+
+    // =============== GAME UTILITIES ===============
     static void showInstructions() {
         System.out.println("Game Instructions");
         System.out.println("--------------------");
@@ -168,56 +261,8 @@ public class NumberGuessingGame {
         input.nextLine();
     }
 
-    static void playGame() {
-        int[] boxes = generateRandomBoxes();
-        boolean[] revealedBoxes = new boolean[5];
-        boolean gameOver = false;
-        int score = 0;
-
-        for (int numberToFind = 1; numberToFind <= 5; numberToFind++) {
-            boolean correctGuess = false;
-            for (int chance = 1; chance <= 3; chance++) {
-                displayBoxes(revealedBoxes, boxes, numberToFind);
-                System.out.print("\nEnter the box number (1-5) : ");
-                int guess = getValidInput(5);
-
-                if (boxes[guess - 1] == numberToFind) {
-                    System.out.println("\nCorrect! Now find the next number.");
-                    revealedBoxes[guess - 1] = true;
-                    correctGuess = true;
-                    score++;
-                    break;
-                } else {
-                    System.out.println("\nIncorrect! You have " + (3 - chance) + " attempt"
-                            + (chance == 1 ? " left." : "s left."));
-                    if (chance == 1)
-                        System.out.println("\nTry again:");
-                }
-            }
-
-            if (!correctGuess) {
-                System.out.println("\nYou failed both attempts!");
-                System.out.println("Game Over!\n");
-                gameOver = true;
-                break;
-            }
-        }
-
-        saveScoreToFile(username, score);
-
-        if (!gameOver) {
-            System.out.println("\nCongratulations! You found all numbers!");
-            System.out.println("You're the Box Master!\n");
-        }
-    }
-
     static void displayBoxes(boolean[] revealed, int[] boxes, int numberToFind) {
         System.out.println("\nNumber to find: " + numberToFind);
-        if (numberToFind > 1) {
-            System.out.println("\nRemaining boxes:\n");
-        } else {
-            System.out.println("\nSelect from the boxes below:\n");
-        }
         for (int i = 0; i < 5; i++) {
             if (!revealed[i]) {
                 System.out.println((i + 1) + ". [ Box " + (i + 1) + " ]");
@@ -235,7 +280,7 @@ public class NumberGuessingGame {
                 } else {
                     System.out.print("Please enter a number between 1 and " + maxBox + ": ");
                 }
-            } catch (NumberFormatException e) {
+            } catch (Exception e) {
                 System.out.print("Invalid input. Enter number between 1 to " + maxBox + ": ");
             }
         }
@@ -253,61 +298,68 @@ public class NumberGuessingGame {
         return arr;
     }
 
+    // =============== GAME END HANDLING ===============
+    private static void handleGameEnd() {
+        int choice = askRetry();
+        switch (choice) {
+            case 1:
+                System.out.println("\nRestarting game...\nBoxes are reshuffling...\nPress Enter to Start...");
+                input.nextLine();
+                break;
+            case 2:
+                System.out.println("Game Ended.\nYour account has been deleted.\n");
+                deleteAccount();
+                isLoggedIn = false;
+                break;
+            case 3:
+                System.out.println("Logged out successfully.\n");
+                isLoggedIn = false;
+                break;
+        }
+    }
+
     static int askRetry() {
         while (true) {
-            System.out.println("\nWhat would you like to do next?\n");
-            System.out.println("1. Retry Game (same account)");
-            System.out.println("2. End Game (delete account)");
-            System.out.println("3. Logout (login again)\n");
-            System.out.print("Enter your choice (1, 2, or 3) : ");
-            String inputStr = input.nextLine().trim();
-            if (inputStr.equals("1") || inputStr.equals("2") || inputStr.equals("3")) {
-                return Integer.parseInt(inputStr);
+            System.out.println("\nWhat would you like to do next?");
+            System.out.println("1. Play Again");
+            System.out.println("2. End Game (Delete Account)");
+            System.out.println("3. Logout");
+            System.out.print("Enter choice (1, 2, or 3): ");
+            String choice = input.nextLine().trim();
+            if (choice.equals("1") || choice.equals("2") || choice.equals("3")) {
+                return Integer.parseInt(choice);
             } else {
-                System.out.println("Please enter 1, 2, or 3 only.");
+                System.out.println("Please enter a valid option.");
             }
         }
     }
 
-    private static boolean checkUsernameInFile(String username) {
-        try {
-            File file = new File("Files/user_data.txt");
-            if (!file.exists())
-                return false;
-
-            Scanner sc = new Scanner(file);
-            while (sc.hasNextLine()) {
-                if (sc.nextLine().toLowerCase().contains("username: " + username.toLowerCase())) {
-                    sc.close();
-                    return true;
-                }
-            }
-            sc.close();
-        } catch (Exception e) {
-            System.out.println("Error checking username in file.");
+    // =============== VALIDATION METHODS ===============
+    private static void validateUsername(String username) {
+        if (username.length() < 4)
+            throw new IllegalArgumentException("Username must be at least 4 characters long.");
+        boolean hasLetter = false, hasDigit = false;
+        for (char c : username.toCharArray()) {
+            if (Character.isLetter(c))
+                hasLetter = true;
+            if (Character.isDigit(c))
+                hasDigit = true;
         }
-        return false;
+        if (!hasLetter || !hasDigit)
+            throw new IllegalArgumentException("Username must contain both letters and numbers.");
     }
 
-    private static void saveUserToFile(String username, String[] details) {
-        try {
-            FileWriter writer = new FileWriter("Files/user_data.txt", true);
-            writer.write("Username: " + username + ", Name: " + details[0] + " " + details[1] + "\n");
-            writer.close();
-        } catch (IOException e) {
-            System.out.println("Could not save user to file.");
+    private static void validatePassword(String password) {
+        if (password.length() < 6)
+            throw new IllegalArgumentException("Password must be at least 6 characters long.");
+        boolean hasLetter = false, hasDigit = false;
+        for (char c : password.toCharArray()) {
+            if (Character.isLetter(c))
+                hasLetter = true;
+            if (Character.isDigit(c))
+                hasDigit = true;
         }
-    }
-
-    private static void saveScoreToFile(String username, int score) {
-        try {
-            FileWriter writer = new FileWriter("Files/scores.csv", true);
-            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd hh:mm:ss a");
-            String formattedDateTime = sdf.format(new java.util.Date());
-            writer.write("User: " + username + ", Score: " + score + "/5, Time: " + formattedDateTime + "\n");
-            writer.close();
-        } catch (IOException e) {
-            System.out.println("Could not save score to file.");
-        }
+        if (!hasLetter || !hasDigit)
+            throw new IllegalArgumentException("Password must contain both letters and numbers.");
     }
 }
