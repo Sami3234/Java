@@ -1,0 +1,28 @@
+import java.util.Scanner;
+
+public class Q4d {
+    public static void main(String[] args) {
+        Scanner in = new Scanner(System.in);
+        int a, b, c;
+
+        System.out.print("Enter first number: ");
+        a = in.nextInt();
+        System.out.print("Enter second number: ");
+        b = in.nextInt();
+        System.out.print("Enter third number: ");
+        c = in.nextInt();
+
+        int smallest;
+
+        if (a < b && a < c)
+            smallest = a;
+        else if (b < c)
+            smallest = b;
+        else
+            smallest = c;
+
+        System.out.println("Smallest number is: " + smallest);
+
+        in.close();
+    }
+}
